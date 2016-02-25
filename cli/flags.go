@@ -26,6 +26,7 @@ import (
 	"github.com/kr/text"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/dustin/go-humanize"
 
 	"github.com/cockroachdb/cockroach/base"
 	"github.com/cockroachdb/cockroach/security"
@@ -35,6 +36,33 @@ var maxResults int64
 
 var connURL string
 var connUser, connHost, connPort, connDBName string
+
+type bytesFlag struct {
+	bytes *uint64
+}
+
+func BytesFlagVar(b *uint64) *bytesFlag {
+	return &bytesFlag{
+		bytes: b,
+	}
+}
+
+func (b *bytesFlag) String() string {
+	return fmt.Sprint(*b.bytes)
+}
+
+func (b *bytesFlag) Set(value string) error {
+	counts, err := humanize.ParseBytes(value)
+	if err != nil {
+		return err
+	}
+	*b.bytes = counts
+	return nil
+}
+
+func (b *bytesFlag) Type() string {
+	return "uint64"
+}
 
 var flagUsage = map[string]string{
 	"attrs": wrapText(`
@@ -233,8 +261,8 @@ func initFlags(ctx *Context) {
 		f.BoolVar(&ctx.Linearizable, "linearizable", ctx.Linearizable, usage("linearizable"))
 
 		// Engine flags.
-		f.Uint64Var(&ctx.CacheSize, "cache-size", ctx.CacheSize, usage("cache-size"))
-		f.Uint64Var(&ctx.MemtableBudget, "memtable-budget", ctx.MemtableBudget, usage("memtable-budget"))
+		f.Var(BytesFlagVar(&ctx.CacheSize), "cache-size", usage("cache-size"))
+		f.Var(BytesFlagVar(&ctx.MemtableBudget), "memtable-budget", usage("memtable-budget"))
 		f.DurationVar(&ctx.ScanInterval, "scan-interval", ctx.ScanInterval, usage("scan-interval"))
 		f.DurationVar(&ctx.ScanMaxIdleTime, "scan-max-idle-time", ctx.ScanMaxIdleTime, usage("scan-max-idle-time"))
 		f.DurationVar(&ctx.TimeUntilStoreDead, "time-until-store-dead", ctx.TimeUntilStoreDead, usage("time-until-store-dead"))
